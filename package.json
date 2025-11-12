@@ -15,6 +15,7 @@
 		"start": "wp-scripts start --blocks-manifest"
 	},
 	"devDependencies": {
+		"@types/react": "^18.3.26",
 		"@wordpress/scripts": "^30.24.0"
 	}
 }

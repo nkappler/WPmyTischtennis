@@ -1,3 +1,9 @@
+//@ts-check
+
+/**
+ * @typedef {import('./index.ts').TabelleSpielplanAttributes} TabelleSpielplanAttributes
+ */
+
 /**
  * Registers a new block provided a unique name and an object defining its behavior.
  *
@@ -25,16 +31,9 @@ import save from './save';
  * Every block starts by registering a new block type definition.
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
+ * @type {typeof registerBlockType<TabelleSpielplanAttributes>}
  */
 registerBlockType(metadata.name, {
-
-	/**
-	 * @see ./edit.js
-	 */
 	edit: Edit,
-
-	/**
-	 * @see ./save.js
-	 */
-	save,
+	save: save,
 });

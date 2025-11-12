@@ -31,10 +31,16 @@ import { __experimentalHStack as HStack, PanelBody, TextControl } from '@wordpre
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-edit-save/#edit
  *
- * @return {Element} Element to render.
+ * @param {import('wordpress__blocks').BlockEditProps<{
+ * 	url: string;
+ * 	search: string;
+ * 	replace: string;
+ * }>} props
+ * @return {import('react').ReactNode} Element to render.
  */
 export default function Edit({ attributes, setAttributes }) {
 	const { url, search, replace } = attributes;
+	console.log('Edit attributes:', attributes);
 	return <>
 		<InspectorControls>
 			<PanelBody title={__('Settings', 'tabelle-spielplan')}>
@@ -84,7 +90,7 @@ export default function Edit({ attributes, setAttributes }) {
 		</InspectorControls>
 		<p {...useBlockProps()}>
 			{__(
-				'Tabelle &amp; Spielplan – hello from the editor!',
+				'Tabelle & Spielplan',
 				'tabelle-spielplan'
 			)}
 		</p>

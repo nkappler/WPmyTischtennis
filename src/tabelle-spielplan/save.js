@@ -13,7 +13,8 @@ import { useBlockProps } from '@wordpress/block-editor';
  *
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-edit-save/#save
  *
- * @return {Element} Element to render.
+ * @param {import('wordpress__blocks').BlockSaveProps<import('.').TabelleSpielplanAttributes>} props
+ * @return {import('react').ReactNode} Element to render.
  */
 export default function save({ attributes }) {
 	return (
