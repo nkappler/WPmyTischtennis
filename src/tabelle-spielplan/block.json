@@ -10,7 +10,16 @@
 	"example": {},
 	"attributes": {
 		"url": {
-			"type": "string"
+			"type": "string",
+			"default": ""
+		},
+		"search": {
+			"type": "string",
+			"default": ""
+		},
+		"replace": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"supports": {
