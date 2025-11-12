@@ -137,9 +137,12 @@
                 }
                 return `${team_home}<wbr> vs. <wbr>${team_away}`;
             default:
-                const value = data[col];
+                let value = data[col];
                 if (search && replace && typeof value === "string") {
-                    if (value.trim() === search.trim()) {
+                    // data might contain extra or double spaces
+                    value = value.replace(/\s+/g, ' ').trim();
+
+                    if (value === search.trim()) {
                         return `<b>${replace}</b>`;
                     }
                 }
