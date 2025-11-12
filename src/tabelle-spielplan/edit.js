@@ -56,7 +56,7 @@ export default function Edit({ attributes, setAttributes }) {
 						setAttributes({ url: value })
 					}
 				/>
-				<HStack spacing={1}>
+				<HStack spacing={1} style={{ alignItems: "start" }}>
 
 					<TextControl
 						__nextHasNoMarginBottom
