@@ -94,11 +94,15 @@
         switch (col) {
             case "date":
                 const date = new Date(data.date);
-                return date.toLocaleDateString("de-de", {
+
+                const weekday = date.toLocaleDateString("de-de", { weekday: 'short' })
+                const datum = date.toLocaleDateString("de-de", {
                     day: '2-digit',
                     month: '2-digit',
-                    year: '2-digit',
+                    year: 'numeric',
                 });
+
+                return `${weekday}. ${datum}`;
             case "time":
                 const time = new Date(data.date);
                 return time.toLocaleTimeString("de-de", {
