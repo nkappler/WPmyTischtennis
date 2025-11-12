@@ -6,7 +6,7 @@
 	"title": "Tabelle & Spielplan",
 	"category": "widgets",
 	"icon": "table",
-	"description": "Example block scaffolded with Create Block tool.",
+	"description": "Embed ranking and match tables from myTischtennis.de ",
 	"example": {},
 	"attributes": {
 		"url": {
