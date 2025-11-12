@@ -129,8 +129,10 @@
                 return ([0, "0"].includes(data.matches_won) && [0, "0"].includes(data.matches_lost)) ? "" :
                     (data.matches_won ?? 0) + ":" + (data.matches_lost ?? 0);
             case "teams":
-                let team_home = data.team_home || "";
-                let team_away = data.team_away || "";
+                // data might contain extra or double spaces
+                let team_home = (data.team_home || "").replace(/\s+/g, ' ').trim();
+                // data might contain extra or double spaces
+                let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
                 if (search && replace) {
                     if (team_home.trim() === search.trim()) {
                         team_home = `<b>${replace}</b>`;
