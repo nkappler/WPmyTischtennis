@@ -24,6 +24,58 @@ import './editor.scss';
 
 import { InspectorControls } from '@wordpress/block-editor';
 import { __experimentalHStack as HStack, PanelBody, TextControl } from '@wordpress/components';
+import { useEffect, useRef, useState } from '@wordpress/element';
+
+const Sidebar = ({ attributes, setAttributes }) => {
+	const { url, search, replace } = attributes;
+
+	return <InspectorControls>
+		<PanelBody title={__('Settings', 'tabelle-spielplan')}>
+			<TextControl
+				__nextHasNoMarginBottom
+				__next40pxDefaultSize
+				label={__(
+					'Abruf-URL',
+					'tabelle-spielplan'
+				)}
+				value={url || ''}
+				onChange={(value) =>
+					setAttributes({ url: value })
+				}
+			/>
+			<HStack spacing={1} style={{ alignItems: "start" }}>
+
+				<TextControl
+					__nextHasNoMarginBottom
+					__next40pxDefaultSize
+					label={__(
+						'Suchen',
+						'tabelle-spielplan'
+					)}
+					value={search || ''}
+					onChange={(value) =>
+						setAttributes({ search: value })
+					}
+				/>
+
+
+				<TextControl
+					__nextHasNoMarginBottom
+					__next40pxDefaultSize
+					label={__(
+						'Ersetzen',
+						'tabelle-spielplan'
+					)}
+					value={replace || ''}
+					onChange={(value) =>
+						setAttributes({ replace: value })
+					}
+				/>
+			</HStack>
+
+		</PanelBody>
+	</InspectorControls>
+};
 
 /**
  * The edit function describes the structure of your block in the context of the
@@ -41,58 +93,374 @@ import { __experimentalHStack as HStack, PanelBody, TextControl } from '@wordpre
 export default function Edit({ attributes, setAttributes }) {
 	const { url, search, replace } = attributes;
 	console.log('Edit attributes:', attributes);
+
+	const [loading, setLoading] = useState(false);
+
+	const [data, setData] = useState(null);
+	const [error, setError] = useState(null);
+	const fetchIdRef = useRef(0);
+
+	useEffect(() => {
+		if (!url) return undefined;
+
+		const urlObj = new URL(url);
+		const fetchUrl = `${location.origin}/proxy?url=${encodeURIComponent(`${urlObj.origin}/${urlObj.pathname}/?_data`)}`
+
+		const controller = new AbortController();
+		const signal = controller.signal;
+		const id = ++fetchIdRef.current;
+
+		setLoading(true);
+		setError(null);
+		setData(null);
+
+		(async () => {
+			try {
+				const res = await fetch(fetchUrl, { signal });
+				if (!res.ok) throw new Error(res.statusText || 'Fetch failed');
+
+				const json = await res.json();
+
+				// ignore result if a newer fetch started
+				if (id !== fetchIdRef.current) return;
+				setData(json);
+			} catch (err) {
+				// aborted requests are expected on cancel — ignore them
+				if (err.name === 'AbortError') return;
+				if (id !== fetchIdRef.current) return;
+				setError(err.message || String(err));
+			} finally {
+				if (id !== fetchIdRef.current) return;
+				setLoading(false);
+			}
+		})();
+
+		// cleanup: abort this fetch if attrs change / component unmounts
+		return () => controller.abort();
+	}, [url, search, replace]);
+
+	console.log(data);
+
+	if (!url) {
+		return <>
+			<Sidebar attributes={attributes} setAttributes={setAttributes} />
+			<p {...useBlockProps()}>
+				{__(
+					'Tabelle & Spielplan',
+					'tabelle-spielplan'
+				)}
+				<br />
+				{__(
+					'Gib eine Abruf-URL in den Block-Einstellungen an, um eine Vorschau zu sehen.',
+					'tabelle-spielplan'
+				)}
+			</p>
+		</>;
+	}
+
+	if (loading) {
+		return <>
+			<Sidebar attributes={attributes} setAttributes={setAttributes} />
+			<p {...useBlockProps()}>
+				{__(
+					'Tabelle & Spielplan',
+					'tabelle-spielplan'
+				)}
+				<br />
+				{__(
+					'Lade Daten...',
+					'tabelle-spielplan'
+				)}
+			</p>
+		</>;
+	}
+
+	if (error) {
+		return <>
+			<Sidebar attributes={attributes} setAttributes={setAttributes} />
+			<p {...useBlockProps()}>
+				{__(
+					'Tabelle & Spielplan',
+					'tabelle-spielplan'
+				)}
+				<br />
+				{__(
+					'Fehler beim Laden der Daten: ' + error,
+					'tabelle-spielplan'
+				)}
+			</p>
+		</>;
+	}
+
 	return <>
-		<InspectorControls>
-			<PanelBody title={__('Settings', 'tabelle-spielplan')}>
-				<TextControl
-					__nextHasNoMarginBottom
-					__next40pxDefaultSize
-					label={__(
-						'Abruf-URL',
-						'tabelle-spielplan'
-					)}
-					value={url || ''}
-					onChange={(value) =>
-						setAttributes({ url: value })
-					}
-				/>
-				<HStack spacing={1} style={{ alignItems: "start" }}>
-
-					<TextControl
-						__nextHasNoMarginBottom
-						__next40pxDefaultSize
-						label={__(
-							'Suchen',
-							'tabelle-spielplan'
-						)}
-						value={search || ''}
-						onChange={(value) =>
-							setAttributes({ search: value })
-						}
-					/>
-
-
-					<TextControl
-						__nextHasNoMarginBottom
-						__next40pxDefaultSize
-						label={__(
-							'Ersetzen',
-							'tabelle-spielplan'
-						)}
-						value={replace || ''}
-						onChange={(value) =>
-							setAttributes({ replace: value })
-						}
-					/>
-				</HStack>
-
-			</PanelBody>
-		</InspectorControls>
+		<Sidebar attributes={attributes} setAttributes={setAttributes} />
 		<p {...useBlockProps()}>
 			{__(
 				'Tabelle & Spielplan',
 				'tabelle-spielplan'
 			)}
 		</p>
+		<Tables search={search} replace={replace} data={data} />
 	</>;
+}
+
+function Tables(props) {
+	const { data: _data, search, replace } = props;
+
+	/** @type {Record<string, string>} */
+	const classNameMap = {
+		teams: "cozy ellipsis minus30ch",
+		datetime: "cozy",
+		team_name: "ellipsis minus24ch",
+	}
+
+	const TABLE_COLUMNS = [
+		{ key: "table_rank", label: "Rang" },
+		{ key: "team_name", label: "Team" },
+		// { key: "matches_won", label: "Spiele gewonnen" },
+		// { key: "matches_lost", label: "Spiele verloren" },
+		// { key: "sets_won", label: "Sätze gewonnen" },
+		// { key: "sets_lost", label: "Sätze verloren" },
+		// { key: "games_won", label: "Spiele gewonnen (Einzel)" },
+		// { key: "games_lost", label: "Spiele verloren (Einzel)" },
+		// { key: "points_won", label: "Punkte" },
+		// { key: "points_lost", label: "Punkte verloren" },
+		{ key: "games", label: "Spiele" },
+		{ key: "matches_relation", label: "+/-" },
+		{ key: "points", label: "Punkte" },
+		{ key: "points/mobile", label: "Pkt" },
+		// { key: "games_relation", label: "Spielverhältnis" }
+	];
+
+	const SCHEDULE_COLUMNS = [
+		{ key: "date", label: "Datum" },
+		{ key: "time", label: "Zeit" },
+		{ key: "datetime", label: "Termin" },
+		{ key: "team_home", label: "Heim" },
+		{ key: "team_away", label: "Gast" },
+		{ key: "teams", label: "Begegnung" },
+		{ key: "matches", label: "Ergebnis" },
+		{ key: "matches/mobile", label: "Erg." },
+		// { key: "matches_won", label: "Heim Siege" },
+		// { key: "matches_lost", label: "Gast Siege" },
+		// { key: "pdf_url", label: "Spielbericht" }
+	];
+
+	function formatColumn(data, col) {
+		switch (col) {
+			case "date":
+				const date = new Date(data.date);
+
+				const weekday = date.toLocaleDateString("de-de", { weekday: 'short' })
+				const datum = date.toLocaleDateString("de-de", {
+					day: '2-digit',
+					month: '2-digit',
+					year: 'numeric',
+				});
+
+				return `${weekday}. ${datum}`;
+			case "time":
+				const time = new Date(data.date);
+				return time.toLocaleTimeString("de-de", {
+					hour: '2-digit',
+					minute: '2-digit',
+				});
+			case "datetime":
+				const datetime = new Date(data.date);
+				return datetime.toLocaleDateString("de-de", {
+					day: '2-digit',
+					month: '2-digit',
+					year: '2-digit'
+				}) + "<wbr> " + datetime.toLocaleTimeString("de-de", {
+					hour: '2-digit',
+					minute: '2-digit',
+				}) + "&nbsp;Uhr";
+			case "points":
+			case "points/mobile":
+				return (data.points_won ?? 0) + ":" + (data.points_lost ?? 0);
+			case "matches":
+			case "games":
+			case "matches/mobile":
+				return ([0, "0"].includes(data.matches_won) && [0, "0"].includes(data.matches_lost)) ? "" :
+					(data.matches_won ?? 0) + ":" + (data.matches_lost ?? 0);
+			case "teams":
+				// data might contain extra or double spaces
+				let team_home = (data.team_home || "").replace(/\s+/g, ' ').trim();
+				// data might contain extra or double spaces
+				let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
+				if (search && replace) {
+					if (team_home.trim() === search.trim()) {
+						team_home = `<b>${replace}</b>`;
+					}
+					if (team_away.trim() === search.trim()) {
+						team_away = `<b>${replace}</b>`;
+					}
+				}
+				return `${team_home}<br />${team_away}`;
+			default:
+				let value = data[col];
+				if (search && replace && typeof value === "string") {
+					// data might contain extra or double spaces
+					value = value.replace(/\s+/g, ' ').trim();
+
+					if (value === search.trim()) {
+						return `<b>${replace}</b>`;
+					}
+				}
+				return value || '';
+		}
+	}
+
+	function isGesamtSpielplan(data) {
+		return data && !data.meetings_excerpt && !data.table;
+	}
+
+	function createGesamtSpielplan(data) {
+
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
+
+		const games = Object.values(data).flat();
+
+		games.map(game => {
+			const tr = document.createElement("tr");
+			SCHEDULE_COLUMNS.forEach(col => {
+				const td = createColumn(col, game);
+				if (game.round_name) {
+					td.classList.add("pokal");
+				}
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
+
+		const headerRow = document.createElement("tr");
+		SCHEDULE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
+
+		table.appendChild(thead);
+		table.appendChild(tbody);
+
+		return table;
+	}
+
+	function createGameSchedule(data) {
+		if (!data || !data.meetings_excerpt || !data.meetings_excerpt.meetings || !Array.isArray(data.meetings_excerpt.meetings)) {
+			return document.createTextNode("No game data available.");
+		}
+
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
+
+		const games = data.meetings_excerpt.meetings
+			.flatMap(_game => Object.values(_game)).flat();
+
+		games.map(game => {
+			const tr = document.createElement("tr");
+			SCHEDULE_COLUMNS.forEach(col => {
+				const td = createColumn(col, game);
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
+
+		const headerRow = document.createElement("tr");
+		SCHEDULE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
+
+		table.appendChild(thead);
+		table.appendChild(tbody);
+
+		return table;
+
+	}
+
+	function createRankTable(data) {
+		if (!data || !data.table || !Array.isArray(data.table)) {
+			return document.createTextNode("No table data available.");
+		}
+
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
+
+		const clubs = data.table;
+
+		clubs.map(club => {
+			const tr = document.createElement("tr");
+			TABLE_COLUMNS.forEach(col => {
+				const td = createColumn(col, club);
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
+
+		const headerRow = document.createElement("tr");
+		TABLE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
+
+		table.appendChild(thead);
+		table.appendChild(tbody);
+
+		return table;
+
+	}
+
+	function createColumn(col, data) {
+		const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
+		const td = document.createElement("td");
+		td.className = classes + " " + col.key.replace("/", " ");
+		td.innerHTML = formatColumn(data, col.key);
+		return td;
+	}
+
+	const children = [];
+
+	if (isGesamtSpielplan(_data && _data.data)) {
+		const spielplan = createGesamtSpielplan(_data && _data.data);
+		children.push(spielplan);
+	} else {
+		const scheduleTitle = document.createElement("h4");
+		scheduleTitle.textContent = "Spielplan";
+		const gameSchedule = createGameSchedule(_data && _data.data);
+		gameSchedule && children.push(scheduleTitle);
+		gameSchedule && children.push(gameSchedule);
+
+		children.push(document.createElement("br"));
+		children.push(document.createElement("br"));
+
+		const rankTitle = document.createElement("h4");
+		rankTitle.textContent = "Tabelle";
+		const rankTable = createRankTable(_data && _data.data);
+		rankTable && children.push(rankTitle);
+		rankTable && children.push(rankTable);
+	}
+
+	const ref = useRef();
+
+	useEffect(() => {
+		const block = ref.current;
+		block && (block.innerHTML = "");
+		block && block.append(...children);
+	});
+
+	return <div ref={ref} ></div>;
+
 }
