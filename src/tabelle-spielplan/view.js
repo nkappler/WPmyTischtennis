@@ -29,8 +29,9 @@
 
     /** @type {Record<string, string>} */
     const classNameMap = {
-        teams: "cozy",
+        teams: "cozy ellipsis minus30ch",
         datetime: "cozy",
+        team_name: "ellipsis minus24ch",
     }
 
     const TABLE_COLUMNS = [
@@ -147,7 +148,7 @@
                         team_away = `<b>${replace}</b>`;
                     }
                 }
-                return `${team_home}<wbr> vs. <wbr>${team_away}`;
+                return `${team_home}<br />${team_away}`;
             default:
                 let value = data[col];
                 if (search && replace && typeof value === "string") {
@@ -222,10 +223,7 @@
             console.log(game)
             const tr = document.createElement("tr");
             SCHEDULE_COLUMNS.forEach(col => {
-                const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
-                const td = document.createElement("td");
-                td.className = classes + " " + col.key.replace("/", " ");
-                td.innerHTML = formatColumn(game, col.key)
+                const td = createColumn(col, game);
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);
@@ -261,9 +259,7 @@
         clubs.map(club => {
             const tr = document.createElement("tr");
             TABLE_COLUMNS.forEach(col => {
-                const td = document.createElement("td");
-                td.className = col.key.replace("/", " ");
-                td.innerHTML = formatColumn(club, col.key);
+                const td = createColumn(col, club);
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);
@@ -283,6 +279,14 @@
 
         return table;
 
+    }
+
+    function createColumn(col, data) {
+        const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
+        const td = document.createElement("td");
+        td.className = classes + " " + col.key.replace("/", " ");
+        td.innerHTML = formatColumn(data, col.key);
+        return td;
     }
 
     if (document.readyState !== "complete") {

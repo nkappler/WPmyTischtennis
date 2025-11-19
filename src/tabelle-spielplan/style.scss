@@ -14,3 +14,17 @@
 .cozy {
 	line-height: 1.3;
 }
+
+.ellipsis {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.minus24ch {
+	max-width: calc(100vw - 24ch);
+}
+
+.minus30ch {
+	max-width: calc(100vw - 30ch);
+}
