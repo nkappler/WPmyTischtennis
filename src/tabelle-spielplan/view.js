@@ -27,6 +27,12 @@
     let search = "";
     let replace = "";
 
+    /** @type {Record<string, string>} */
+    const classNameMap = {
+        teams: "cozy",
+        datetime: "cozy",
+    }
+
     const TABLE_COLUMNS = [
         { key: "table_rank", label: "Rang" },
         { key: "team_name", label: "Team" },
@@ -216,8 +222,9 @@
             console.log(game)
             const tr = document.createElement("tr");
             SCHEDULE_COLUMNS.forEach(col => {
+                const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
                 const td = document.createElement("td");
-                td.className = col.key.replace("/", " ");
+                td.className = classes + " " + col.key.replace("/", " ");
                 td.innerHTML = formatColumn(game, col.key)
                 tr.appendChild(td);
             });
