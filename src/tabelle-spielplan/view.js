@@ -66,37 +66,6 @@
         // { key: "pdf_url", label: "Spielbericht" }
     ];
 
-    const _replacements = [
-        /* 
-        * Diese Liste ersetzt den Clubnamen durch die internen Mannschaftsnamen, abhängig von der Anzahl Einträge pro Zeile:
-        * 1 Wert (Beispiel ["spielfrei"]): Wird dieser Text in einer Tabellenzeile gefunden, wird die gesamte Zeile entfernt.
-        * 2 Werte (Beispiel ["TTC Langensteinbach IV", "<b>Herren4</b>"]): Wird der erste Wert in einer Zeile gefunden, wird
-        * er durch den zweiten Wert ersetzt.
-        * 3 Werte (Beispiel ["He Bez", "TTC Langensteinbach", "<b>Herren 1</b>"]): Wird der erste Wert (Liga) irgendwo in einer
-        * Zeile gefunden, wird in dieser Zeile der zweite Wert durch den dritten Wert ersetzt. Der Abgleich der Liga ist notwendig,
-        * da "TTC Langensteinbach" nicht eindeutig ist. Aus diesem Grund gibt es das Argument "replaceClubName" für Tabellen in
-        * denen die Liga nicht enthalten ist.
-        **/
-        ["spielfrei"],
-        ["SG-Weingarten/L'steinbach", "<b>Damen</b>"],
-        ["TTC Langensteinbach V", "<b>Erwachsene V</b>"],
-        ["E Bez Li", "TTC Langensteinbach", "<b>Erwachsene I</b>"],
-        ["E Kr Li", "TTC Langensteinbach II", "<b>Erwachsene II</b>"],
-        ["E Kr Kl B", "TTC Langensteinbach III", "<b>Erwachsene III</b>"],
-        ["E Kr Kl C", "TTC Langensteinbach IV", "<b>Erwachsene IV</b>"],
-        ["Ju 19 Vb Kl", "TTC Langensteinbach", "<b>Jugend 19 I</b>"],
-        ["Ju 19 Kr Li", "TTC Langensteinbach II", "<b>Jugend 19 II</b>"],
-        ["Ju 19 Kr Kl", "TTC Langensteinbach III", "<b>Jugend 19 III</b>"],
-        ["Ju 15", "TTC Langensteinbach", "<b>Jugend 15</b>"],
-        ["Ju 13", "TTC Langensteinbach", "<b>Jugend 13</b>"],
-        ["E B Pok", "TTC Langensteinbach", "<b>Erwachsene I (Pokal)</b>"],
-        ["E C Pok", "TTC Langensteinbach II", "<b>Erwachsene II (Pokal)</b>"],
-        ["Kl B Pok", "TTC Langensteinbach III", "<b>Erwachsene III (Pokal)</b>"],
-        ["Kl CD Pok", "TTC Langensteinbach IV", "<b>Erwachsene IV (Pokal)</b>"],
-        ["Ju 19 Pok", "TTC Langensteinbach II", "<b>Jungen 19 II (Pokal)</b>"],
-        ["Ju 15 Pok", "TTC Langensteinbach", "<b>Jungen 15 (Pokal)</b>"],
-    ];
-
     function formatColumn(data, col) {
         switch (col) {
             case "date":
@@ -128,7 +97,6 @@
                 }) + "&nbsp;Uhr";
             case "points":
             case "points/mobile":
-                console.log(data);
                 return (data.points_won ?? 0) + ":" + (data.points_lost ?? 0);
             case "matches":
             case "games":
@@ -179,32 +147,75 @@
         search = block.dataset.search || "";
         replace = block.dataset.replace || "";
 
-        // console.log("Fetching data for Tabelle & Spielplan block from URL:", url);
-
         const data = await (await fetch(`${location.origin}/proxy?url=${encodeURIComponent(`${url.origin}/${url.pathname}/?_data`)}`)).json();
 
         const container = document.createElement("div");
 
-        const scheduleTitle = document.createElement("h4");
-        scheduleTitle.textContent = "Spielplan";
-        const gameSchedule = createGameSchedule(data?.data);
-        gameSchedule && container.appendChild(scheduleTitle);
-        gameSchedule && container.appendChild(gameSchedule);
+        if (isGesamtSpielplan(data?.data)) {
+            const spielplan = createGesamtSpielplan(data?.data);
+            container.appendChild(spielplan);
+        } else {
+            const scheduleTitle = document.createElement("h4");
+            scheduleTitle.textContent = "Spielplan";
+            const gameSchedule = createGameSchedule(data?.data);
+            gameSchedule && container.appendChild(scheduleTitle);
+            gameSchedule && container.appendChild(gameSchedule);
 
-        container.appendChild(document.createElement("br"));
-        container.appendChild(document.createElement("br"));
+            container.appendChild(document.createElement("br"));
+            container.appendChild(document.createElement("br"));
 
-        const rankTitle = document.createElement("h4");
-        rankTitle.textContent = "Tabelle";
-        const rankTable = createRankTable(data?.data);
-        rankTable && container.appendChild(rankTitle);
-        rankTable && container.appendChild(rankTable);
+            const rankTitle = document.createElement("h4");
+            rankTitle.textContent = "Tabelle";
+            const rankTable = createRankTable(data?.data);
+            rankTable && container.appendChild(rankTitle);
+            rankTable && container.appendChild(rankTable);
+        }
+
 
         block.replaceWith(container);
 
 
         search = "";
         replace = "";
+    }
+
+    function isGesamtSpielplan(data) {
+        return data && !data.meetings_excerpt && !data.table;
+    }
+
+    function createGesamtSpielplan(data) {
+
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const tbody = document.createElement("tbody");
+
+        const games = Object.values(data).flat();
+
+        games.map(game => {
+            const tr = document.createElement("tr");
+            SCHEDULE_COLUMNS.forEach(col => {
+                const td = createColumn(col, game);
+                if (game.round_name) {
+                    td.classList.add("pokal");
+                }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+
+        const headerRow = document.createElement("tr");
+        SCHEDULE_COLUMNS.forEach(col => {
+            const th = document.createElement("th");
+            th.className = col.key.replace("/", " ");
+            th.textContent = col.label;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        return table;
     }
 
     function createGameSchedule(data) {
@@ -220,7 +231,6 @@
             .flatMap(_game => Object.values(_game)).flat();
 
         games.map(game => {
-            console.log(game)
             const tr = document.createElement("tr");
             SCHEDULE_COLUMNS.forEach(col => {
                 const td = createColumn(col, game);
