@@ -121,7 +121,7 @@
                     day: '2-digit',
                     month: '2-digit',
                     year: '2-digit'
-                }) + ",<wbr> " + datetime.toLocaleTimeString("de-de", {
+                }) + "<wbr> " + datetime.toLocaleTimeString("de-de", {
                     hour: '2-digit',
                     minute: '2-digit',
                 }) + "&nbsp;Uhr";
