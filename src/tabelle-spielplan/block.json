@@ -14,12 +14,22 @@
 			"default": ""
 		},
 		"search": {
-			"type": "string",
-			"default": ""
+			"type": "array",
+			"default": [
+				""
+			]
 		},
 		"replace": {
-			"type": "string",
-			"default": ""
+			"type": "array",
+			"default": [
+				""
+			]
+		},
+		"liga": {
+			"type": "array",
+			"default": [
+				""
+			]
 		}
 	},
 	"supports": {

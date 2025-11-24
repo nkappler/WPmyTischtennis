@@ -17,12 +17,15 @@ import { useBlockProps } from '@wordpress/block-editor';
  * @return {import('react').ReactNode} Element to render.
  */
 export default function save({ attributes }) {
+	console.log('Save function attributes:', attributes);
+
 	return (
 		<p
 			{...useBlockProps.save()}
 			data-url={attributes.url}
-			data-search={attributes.search}
-			data-replace={attributes.replace}
+			data-search={attributes.search.join('|!|')}
+			data-replace={attributes.replace.join('|!|')}
+			data-liga={attributes.liga.join('|!|')}
 		>
 			{'Tabelle & Spielplan wird geladen...'}
 		</p>

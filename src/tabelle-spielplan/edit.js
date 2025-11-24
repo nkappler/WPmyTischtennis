@@ -1,4 +1,4 @@
-// @ts-check
+// @ts -check
 /**
  * Retrieves the translation of text.
  *
@@ -23,11 +23,11 @@ import { useBlockProps } from '@wordpress/block-editor';
 import './editor.scss';
 
 import { InspectorControls } from '@wordpress/block-editor';
-import { __experimentalHStack as HStack, PanelBody, TextControl } from '@wordpress/components';
+import { Button, __experimentalHStack as HStack, IconButton, PanelBody, TextControl, __experimentalVStack as VStack } from '@wordpress/components';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
 const Sidebar = ({ attributes, setAttributes }) => {
-	const { url, search, replace } = attributes;
+	const { url, search, replace, liga } = attributes;
 
 	return <InspectorControls>
 		<PanelBody title={__('Settings', 'tabelle-spielplan')}>
@@ -43,35 +43,81 @@ const Sidebar = ({ attributes, setAttributes }) => {
 					setAttributes({ url: value })
 				}
 			/>
-			<HStack spacing={1} style={{ alignItems: "start" }}>
 
-				<TextControl
-					__nextHasNoMarginBottom
-					__next40pxDefaultSize
-					label={__(
-						'Suchen',
-						'tabelle-spielplan'
-					)}
-					value={search || ''}
-					onChange={(value) =>
-						setAttributes({ search: value })
-					}
-				/>
+			<VStack spacing={2}>
+				{search.map((_, i) => {
+
+					return <HStack spacing={1} style={{ alignItems: "start" }} className='tabelle-spielplan-replace-rule'>
+
+						<VStack spacing={0}>
+
+							<HStack spacing={1} style={{ alignItems: "start" }}>
+
+								<TextControl
+									__nextHasNoMarginBottom
+									__next40pxDefaultSize
+									label={__(
+										'Suchen',
+										'tabelle-spielplan'
+									)}
+									value={search[i] || ''}
+									onChange={(value) =>
+										setAttributes({ search: search.map((s, index) => index === i ? value : s) })
+									}
+								/>
 
 
-				<TextControl
-					__nextHasNoMarginBottom
-					__next40pxDefaultSize
-					label={__(
-						'Ersetzen',
-						'tabelle-spielplan'
-					)}
-					value={replace || ''}
-					onChange={(value) =>
-						setAttributes({ replace: value })
-					}
-				/>
-			</HStack>
+								<TextControl
+									__nextHasNoMarginBottom
+									__next40pxDefaultSize
+									label={__(
+										'Ersetzen',
+										'tabelle-spielplan'
+									)}
+									value={replace[i] || ''}
+									onChange={(value) =>
+										setAttributes({ replace: replace.map((r, index) => index === i ? value : r) })
+									}
+								/>
+							</HStack>
+
+							<TextControl
+								className='tabelle-spielplan-input'
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize
+								label={__(
+									'für Liga (optional):',
+									'tabelle-spielplan'
+								)}
+								value={liga[i] || ''}
+								onChange={(value) =>
+									setAttributes({ liga: liga.map((r, index) => index === i ? value : r) })
+								}
+							/>
+						</VStack>
+
+						<IconButton
+							icon="trash"
+							label={__('Regel löschen', 'tabelle-spielplan')}
+							onClick={() => {
+								setAttributes({
+									search: search.filter((_, index) => index !== i),
+									replace: replace.filter((_, index) => index !== i),
+									liga: liga.filter((_, index) => index !== i),
+								});
+							}}
+						/>
+					</HStack>
+				})}
+			</VStack>
+
+			<Button icon={"plus"} onClick={() => {
+				setAttributes({
+					search: [...search, ''],
+					replace: [...replace, ''],
+					liga: [...liga, ''],
+				});
+			}}>Weitere Regel</Button>
 
 		</PanelBody>
 	</InspectorControls>
@@ -91,7 +137,7 @@ const Sidebar = ({ attributes, setAttributes }) => {
  * @return {import('react').ReactNode} Element to render.
  */
 export default function Edit({ attributes, setAttributes }) {
-	const { url, search, replace } = attributes;
+	const { url, search, replace, liga } = attributes;
 	console.log('Edit attributes:', attributes);
 
 	const [loading, setLoading] = useState(false);
@@ -112,7 +158,6 @@ export default function Edit({ attributes, setAttributes }) {
 
 		setLoading(true);
 		setError(null);
-		setData(null);
 
 		(async () => {
 			try {
@@ -129,6 +174,7 @@ export default function Edit({ attributes, setAttributes }) {
 				if (err.name === 'AbortError') return;
 				if (id !== fetchIdRef.current) return;
 				setError(err.message || String(err));
+				setData(null);
 			} finally {
 				if (id !== fetchIdRef.current) return;
 				setLoading(false);
@@ -158,7 +204,7 @@ export default function Edit({ attributes, setAttributes }) {
 		</>;
 	}
 
-	if (loading) {
+	if (loading && !data) {
 		return <>
 			<Sidebar attributes={attributes} setAttributes={setAttributes} />
 			<p {...useBlockProps()}>
@@ -196,16 +242,16 @@ export default function Edit({ attributes, setAttributes }) {
 		<Sidebar attributes={attributes} setAttributes={setAttributes} />
 		<p {...useBlockProps()}>
 			{__(
-				'Tabelle & Spielplan',
+				'Tabelle & Spielplan' + (loading ? ' (aktualisiere Daten...)' : ''),
 				'tabelle-spielplan'
 			)}
 		</p>
-		<Tables search={search} replace={replace} data={data} />
+		<Tables search={search} replace={replace} liga={liga} data={data} />
 	</>;
 }
 
 function Tables(props) {
-	const { data: _data, search, replace } = props;
+	const { data: _data, search, replace, liga } = props;
 
 	/** @type {Record<string, string>} */
 	const classNameMap = {
@@ -289,26 +335,43 @@ function Tables(props) {
 				// data might contain extra or double spaces
 				let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
 				if (search && replace) {
-					if (team_home.trim() === search.trim()) {
-						team_home = `<b>${replace}</b>`;
-					}
-					if (team_away.trim() === search.trim()) {
-						team_away = `<b>${replace}</b>`;
-					}
+					team_home = searchAndReplace(search, replace, team_home, data.league_name);
+					team_away = searchAndReplace(search, replace, team_away, data.league_name);
 				}
 				return `${team_home}<br />${team_away}`;
 			default:
 				let value = data[col];
 				if (search && replace && typeof value === "string") {
 					// data might contain extra or double spaces
-					value = value.replace(/\s+/g, ' ').trim();
+					// value = value.replace(/\s+/g, ' ').trim();
 
-					if (value === search.trim()) {
-						return `<b>${replace}</b>`;
-					}
+					// if (value === search.trim()) {
+					// 	return `<b>${replace}</b>`;
+					// }
+					return searchAndReplace(search, replace, value, data.league_name);
 				}
 				return value || '';
 		}
+	}
+
+	function searchAndReplace(search, replace, data, league_name) {
+		if (!search) return data;
+		if (Array.isArray(search)) {
+			if (search.map(s => s.trim()).includes(data.trim())) {
+				const index = search.map(s => s.trim()).indexOf(data.trim());
+				if (!liga[index] || liga[index].trim() === "") {
+					return `<b>${replace[index]}</b>`;
+				}
+
+				if (liga[index] && liga[index].trim() !== "" && liga[index].trim() === league_name) {
+					return `<b>${replace[index]}</b>`;
+				}
+			}
+		}
+		else if (data.trim() === search.trim()) {
+			return `<b>${replace}</b>`;
+		}
+		return data;
 	}
 
 	function isGesamtSpielplan(data) {

@@ -24,8 +24,9 @@
 
 (function () {
 
-    let search = "";
-    let replace = "";
+    let search = [];
+    let replace = [];
+    let liga = [];
 
     /** @type {Record<string, string>} */
     const classNameMap = {
@@ -109,26 +110,43 @@
                 // data might contain extra or double spaces
                 let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
                 if (search && replace) {
-                    if (team_home.trim() === search.trim()) {
-                        team_home = `<b>${replace}</b>`;
-                    }
-                    if (team_away.trim() === search.trim()) {
-                        team_away = `<b>${replace}</b>`;
-                    }
+                    team_home = searchAndReplace(search, replace, team_home, data.league_name);
+                    team_away = searchAndReplace(search, replace, team_away, data.league_name);
                 }
                 return `${team_home}<br />${team_away}`;
             default:
                 let value = data[col];
                 if (search && replace && typeof value === "string") {
                     // data might contain extra or double spaces
-                    value = value.replace(/\s+/g, ' ').trim();
+                    // value = value.replace(/\s+/g, ' ').trim();
 
-                    if (value === search.trim()) {
-                        return `<b>${replace}</b>`;
-                    }
+                    // if (value === search.trim()) {
+                    // 	return `<b>${replace}</b>`;
+                    // }
+                    return searchAndReplace(search, replace, value, data.league_name);
                 }
                 return value || '';
         }
+    }
+
+    function searchAndReplace(search, replace, data, league_name) {
+        if (!search) return data;
+        if (Array.isArray(search)) {
+            if (search.map(s => s.trim()).includes(data.trim())) {
+                const index = search.map(s => s.trim()).indexOf(data.trim());
+                if (!liga[index] || liga[index].trim() === "") {
+                    return `<b>${replace[index]}</b>`;
+                }
+
+                if (liga[index] && liga[index].trim() !== "" && liga[index].trim() === league_name) {
+                    return `<b>${replace[index]}</b>`;
+                }
+            }
+        }
+        else if (data.trim() === search.trim()) {
+            return `<b>${replace}</b>`;
+        }
+        return data;
     }
 
 
@@ -144,8 +162,9 @@
             return;
         }
 
-        search = block.dataset.search || "";
-        replace = block.dataset.replace || "";
+        search = (block.dataset.search || "").split('|!|');
+        replace = (block.dataset.replace || "").split('|!|');
+        liga = (block.dataset.liga || "").split('|!|');
 
         const data = await (await fetch(`${location.origin}/proxy?url=${encodeURIComponent(`${url.origin}/${url.pathname}/?_data`)}`)).json();
 
@@ -175,8 +194,9 @@
         block.replaceWith(container);
 
 
-        search = "";
-        replace = "";
+        search = [];
+        replace = [];
+        liga = [];
     }
 
     function isGesamtSpielplan(data) {
