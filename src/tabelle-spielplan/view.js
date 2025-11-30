@@ -129,18 +129,35 @@
 		}
 	}
 
+	function trim(str) {
+		// trims double spaces and leading/trailing spaces
+		return str?.replace(/\s+/g, ' ').trim();
+	}
+
 	function searchAndReplace(search, replace, data, league_name) {
 		if (!search) return data;
 		if (Array.isArray(search)) {
-			if (search.map(s => s.trim()).includes(data.trim())) {
-				const index = search.map(s => s.trim()).indexOf(data.trim());
-				if (!liga[index] || liga[index].trim() === "") {
-					return `<b>${replace[index]}</b>`;
-				}
 
-				if (liga[index] && liga[index].trim() !== "" && liga[index].trim() === league_name) {
-					return `<b>${replace[index]}</b>`;
+			const index = search.map(s => trim(s)).findIndex((s, i) => {
+				if (!liga[i] || trim(liga[i]) === "") {
+					return trim(s) === trim(data);
 				}
+				if (liga[i] && trim(liga[i]) !== "" && trim(liga[i]) === trim(league_name)) {
+					return trim(s) === trim(data);
+				}
+				return false;
+			});
+
+			if (index === -1) {
+				return data;
+			}
+
+			if (!liga[index] || trim(liga[index]) === "") {
+				return `<b>${replace[index]}</b>`;
+			}
+
+			if (liga[index] && trim(liga[index]) !== "" && trim(liga[index]) === trim(league_name)) {
+				return `<b>${replace[index]}</b>`;
 			}
 		}
 		else if (data.trim() === search.trim()) {
