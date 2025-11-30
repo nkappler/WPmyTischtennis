@@ -130,9 +130,9 @@ const Sidebar = ({ attributes, setAttributes }) => {
  * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-edit-save/#edit
  *
  * @param {import('wordpress__blocks').BlockEditProps<{
- * 	url: string;
- * 	search: string;
- * 	replace: string;
+ *     url: string;
+ *     search: string;
+ *     replace: string;
  * }>} props
  * @return {import('react').ReactNode} Element to render.
  */
@@ -346,7 +346,7 @@ function Tables(props) {
 					// value = value.replace(/\s+/g, ' ').trim();
 
 					// if (value === search.trim()) {
-					// 	return `<b>${replace}</b>`;
+					//     return `<b>${replace}</b>`;
 					// }
 					return searchAndReplace(search, replace, value, data.league_name);
 				}

@@ -24,309 +24,309 @@
 
 (function () {
 
-    let search = [];
-    let replace = [];
-    let liga = [];
+	let search = [];
+	let replace = [];
+	let liga = [];
 
-    /** @type {Record<string, string>} */
-    const classNameMap = {
-        teams: "cozy ellipsis minus30ch",
-        datetime: "cozy",
-        team_name: "ellipsis minus24ch",
-    }
+	/** @type {Record<string, string>} */
+	const classNameMap = {
+		teams: "cozy ellipsis minus30ch",
+		datetime: "cozy",
+		team_name: "ellipsis minus24ch",
+	}
 
-    const TABLE_COLUMNS = [
-        { key: "table_rank", label: "Rang" },
-        { key: "team_name", label: "Team" },
-        // { key: "matches_won", label: "Spiele gewonnen" },
-        // { key: "matches_lost", label: "Spiele verloren" },
-        // { key: "sets_won", label: "Sätze gewonnen" },
-        // { key: "sets_lost", label: "Sätze verloren" },
-        // { key: "games_won", label: "Spiele gewonnen (Einzel)" },
-        // { key: "games_lost", label: "Spiele verloren (Einzel)" },
-        // { key: "points_won", label: "Punkte" },
-        // { key: "points_lost", label: "Punkte verloren" },
-        { key: "games", label: "Spiele" },
-        { key: "matches_relation", label: "+/-" },
-        { key: "points", label: "Punkte" },
-        { key: "points/mobile", label: "Pkt" },
-        // { key: "games_relation", label: "Spielverhältnis" }
-    ];
+	const TABLE_COLUMNS = [
+		{ key: "table_rank", label: "Rang" },
+		{ key: "team_name", label: "Team" },
+		// { key: "matches_won", label: "Spiele gewonnen" },
+		// { key: "matches_lost", label: "Spiele verloren" },
+		// { key: "sets_won", label: "Sätze gewonnen" },
+		// { key: "sets_lost", label: "Sätze verloren" },
+		// { key: "games_won", label: "Spiele gewonnen (Einzel)" },
+		// { key: "games_lost", label: "Spiele verloren (Einzel)" },
+		// { key: "points_won", label: "Punkte" },
+		// { key: "points_lost", label: "Punkte verloren" },
+		{ key: "games", label: "Spiele" },
+		{ key: "matches_relation", label: "+/-" },
+		{ key: "points", label: "Punkte" },
+		{ key: "points/mobile", label: "Pkt" },
+		// { key: "games_relation", label: "Spielverhältnis" }
+	];
 
-    const SCHEDULE_COLUMNS = [
-        { key: "date", label: "Datum" },
-        { key: "time", label: "Zeit" },
-        { key: "datetime", label: "Termin" },
-        { key: "team_home", label: "Heim" },
-        { key: "team_away", label: "Gast" },
-        { key: "teams", label: "Begegnung" },
-        { key: "matches", label: "Ergebnis" },
-        { key: "matches/mobile", label: "Erg." },
-        // { key: "matches_won", label: "Heim Siege" },
-        // { key: "matches_lost", label: "Gast Siege" },
-        // { key: "pdf_url", label: "Spielbericht" }
-    ];
+	const SCHEDULE_COLUMNS = [
+		{ key: "date", label: "Datum" },
+		{ key: "time", label: "Zeit" },
+		{ key: "datetime", label: "Termin" },
+		{ key: "team_home", label: "Heim" },
+		{ key: "team_away", label: "Gast" },
+		{ key: "teams", label: "Begegnung" },
+		{ key: "matches", label: "Ergebnis" },
+		{ key: "matches/mobile", label: "Erg." },
+		// { key: "matches_won", label: "Heim Siege" },
+		// { key: "matches_lost", label: "Gast Siege" },
+		// { key: "pdf_url", label: "Spielbericht" }
+	];
 
-    function formatColumn(data, col) {
-        switch (col) {
-            case "date":
-                const date = new Date(data.date);
+	function formatColumn(data, col) {
+		switch (col) {
+			case "date":
+				const date = new Date(data.date);
 
-                const weekday = date.toLocaleDateString("de-de", { weekday: 'short' })
-                const datum = date.toLocaleDateString("de-de", {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                });
+				const weekday = date.toLocaleDateString("de-de", { weekday: 'short' })
+				const datum = date.toLocaleDateString("de-de", {
+					day: '2-digit',
+					month: '2-digit',
+					year: 'numeric',
+				});
 
-                return `${weekday}. ${datum}`;
-            case "time":
-                const time = new Date(data.date);
-                return time.toLocaleTimeString("de-de", {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                });
-            case "datetime":
-                const datetime = new Date(data.date);
-                return datetime.toLocaleDateString("de-de", {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit'
-                }) + "<wbr> " + datetime.toLocaleTimeString("de-de", {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }) + "&nbsp;Uhr";
-            case "points":
-            case "points/mobile":
-                return (data.points_won ?? 0) + ":" + (data.points_lost ?? 0);
-            case "matches":
-            case "games":
-            case "matches/mobile":
-                return ([0, "0"].includes(data.matches_won) && [0, "0"].includes(data.matches_lost)) ? "" :
-                    (data.matches_won ?? 0) + ":" + (data.matches_lost ?? 0);
-            case "teams":
-                // data might contain extra or double spaces
-                let team_home = (data.team_home || "").replace(/\s+/g, ' ').trim();
-                // data might contain extra or double spaces
-                let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
-                if (search && replace) {
-                    team_home = searchAndReplace(search, replace, team_home, data.league_name);
-                    team_away = searchAndReplace(search, replace, team_away, data.league_name);
-                }
-                return `${team_home}<br />${team_away}`;
-            default:
-                let value = data[col];
-                if (search && replace && typeof value === "string") {
-                    // data might contain extra or double spaces
-                    // value = value.replace(/\s+/g, ' ').trim();
+				return `${weekday}. ${datum}`;
+			case "time":
+				const time = new Date(data.date);
+				return time.toLocaleTimeString("de-de", {
+					hour: '2-digit',
+					minute: '2-digit',
+				});
+			case "datetime":
+				const datetime = new Date(data.date);
+				return datetime.toLocaleDateString("de-de", {
+					day: '2-digit',
+					month: '2-digit',
+					year: '2-digit'
+				}) + "<wbr> " + datetime.toLocaleTimeString("de-de", {
+					hour: '2-digit',
+					minute: '2-digit',
+				}) + "&nbsp;Uhr";
+			case "points":
+			case "points/mobile":
+				return (data.points_won ?? 0) + ":" + (data.points_lost ?? 0);
+			case "matches":
+			case "games":
+			case "matches/mobile":
+				return ([0, "0"].includes(data.matches_won) && [0, "0"].includes(data.matches_lost)) ? "" :
+					(data.matches_won ?? 0) + ":" + (data.matches_lost ?? 0);
+			case "teams":
+				// data might contain extra or double spaces
+				let team_home = (data.team_home || "").replace(/\s+/g, ' ').trim();
+				// data might contain extra or double spaces
+				let team_away = (data.team_away || "").replace(/\s+/g, ' ').trim();
+				if (search && replace) {
+					team_home = searchAndReplace(search, replace, team_home, data.league_name);
+					team_away = searchAndReplace(search, replace, team_away, data.league_name);
+				}
+				return `${team_home}<br />${team_away}`;
+			default:
+				let value = data[col];
+				if (search && replace && typeof value === "string") {
+					// data might contain extra or double spaces
+					// value = value.replace(/\s+/g, ' ').trim();
 
-                    // if (value === search.trim()) {
-                    // 	return `<b>${replace}</b>`;
-                    // }
-                    return searchAndReplace(search, replace, value, data.league_name);
-                }
-                return value || '';
-        }
-    }
+					// if (value === search.trim()) {
+					// 	return `<b>${replace}</b>`;
+					// }
+					return searchAndReplace(search, replace, value, data.league_name);
+				}
+				return value || '';
+		}
+	}
 
-    function searchAndReplace(search, replace, data, league_name) {
-        if (!search) return data;
-        if (Array.isArray(search)) {
-            if (search.map(s => s.trim()).includes(data.trim())) {
-                const index = search.map(s => s.trim()).indexOf(data.trim());
-                if (!liga[index] || liga[index].trim() === "") {
-                    return `<b>${replace[index]}</b>`;
-                }
+	function searchAndReplace(search, replace, data, league_name) {
+		if (!search) return data;
+		if (Array.isArray(search)) {
+			if (search.map(s => s.trim()).includes(data.trim())) {
+				const index = search.map(s => s.trim()).indexOf(data.trim());
+				if (!liga[index] || liga[index].trim() === "") {
+					return `<b>${replace[index]}</b>`;
+				}
 
-                if (liga[index] && liga[index].trim() !== "" && liga[index].trim() === league_name) {
-                    return `<b>${replace[index]}</b>`;
-                }
-            }
-        }
-        else if (data.trim() === search.trim()) {
-            return `<b>${replace}</b>`;
-        }
-        return data;
-    }
-
-
-    function init() {
-        document.querySelectorAll("p.wp-block-ttc-tabelle-spielplan").forEach(replaceBlockWithTable);
-    }
-
-    async function replaceBlockWithTable(block) {
-        const _url = block.dataset.url;
-        const url = new URL(_url);
-        if (!url) {
-            console.warn("No URL provided for Tabelle & Spielplan block.");
-            return;
-        }
-
-        search = (block.dataset.search || "").split('|!|');
-        replace = (block.dataset.replace || "").split('|!|');
-        liga = (block.dataset.liga || "").split('|!|');
-
-        const data = await (await fetch(`${location.origin}/proxy?url=${encodeURIComponent(`${url.origin}/${url.pathname}/?_data`)}`)).json();
-
-        const container = document.createElement("div");
-
-        if (isGesamtSpielplan(data?.data)) {
-            const spielplan = createGesamtSpielplan(data?.data);
-            container.appendChild(spielplan);
-        } else {
-            const scheduleTitle = document.createElement("h4");
-            scheduleTitle.textContent = "Spielplan";
-            const gameSchedule = createGameSchedule(data?.data);
-            gameSchedule && container.appendChild(scheduleTitle);
-            gameSchedule && container.appendChild(gameSchedule);
-
-            container.appendChild(document.createElement("br"));
-            container.appendChild(document.createElement("br"));
-
-            const rankTitle = document.createElement("h4");
-            rankTitle.textContent = "Tabelle";
-            const rankTable = createRankTable(data?.data);
-            rankTable && container.appendChild(rankTitle);
-            rankTable && container.appendChild(rankTable);
-        }
+				if (liga[index] && liga[index].trim() !== "" && liga[index].trim() === league_name) {
+					return `<b>${replace[index]}</b>`;
+				}
+			}
+		}
+		else if (data.trim() === search.trim()) {
+			return `<b>${replace}</b>`;
+		}
+		return data;
+	}
 
 
-        block.replaceWith(container);
+	function init() {
+		document.querySelectorAll("p.wp-block-ttc-tabelle-spielplan").forEach(replaceBlockWithTable);
+	}
+
+	async function replaceBlockWithTable(block) {
+		const _url = block.dataset.url;
+		const url = new URL(_url);
+		if (!url) {
+			console.warn("No URL provided for Tabelle & Spielplan block.");
+			return;
+		}
+
+		search = (block.dataset.search || "").split('|!|');
+		replace = (block.dataset.replace || "").split('|!|');
+		liga = (block.dataset.liga || "").split('|!|');
+
+		const data = await (await fetch(`${location.origin}/proxy?url=${encodeURIComponent(`${url.origin}/${url.pathname}/?_data`)}`)).json();
+
+		const container = document.createElement("div");
+
+		if (isGesamtSpielplan(data?.data)) {
+			const spielplan = createGesamtSpielplan(data?.data);
+			container.appendChild(spielplan);
+		} else {
+			const scheduleTitle = document.createElement("h4");
+			scheduleTitle.textContent = "Spielplan";
+			const gameSchedule = createGameSchedule(data?.data);
+			gameSchedule && container.appendChild(scheduleTitle);
+			gameSchedule && container.appendChild(gameSchedule);
+
+			container.appendChild(document.createElement("br"));
+			container.appendChild(document.createElement("br"));
+
+			const rankTitle = document.createElement("h4");
+			rankTitle.textContent = "Tabelle";
+			const rankTable = createRankTable(data?.data);
+			rankTable && container.appendChild(rankTitle);
+			rankTable && container.appendChild(rankTable);
+		}
 
 
-        search = [];
-        replace = [];
-        liga = [];
-    }
+		block.replaceWith(container);
 
-    function isGesamtSpielplan(data) {
-        return data && !data.meetings_excerpt && !data.table;
-    }
 
-    function createGesamtSpielplan(data) {
+		search = [];
+		replace = [];
+		liga = [];
+	}
 
-        const table = document.createElement("table");
-        const thead = document.createElement("thead");
-        const tbody = document.createElement("tbody");
+	function isGesamtSpielplan(data) {
+		return data && !data.meetings_excerpt && !data.table;
+	}
 
-        const games = Object.values(data).flat();
+	function createGesamtSpielplan(data) {
 
-        games.map(game => {
-            const tr = document.createElement("tr");
-            SCHEDULE_COLUMNS.forEach(col => {
-                const td = createColumn(col, game);
-                if (game.round_name) {
-                    td.classList.add("pokal");
-                }
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
 
-        const headerRow = document.createElement("tr");
-        SCHEDULE_COLUMNS.forEach(col => {
-            const th = document.createElement("th");
-            th.className = col.key.replace("/", " ");
-            th.textContent = col.label;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
+		const games = Object.values(data).flat();
 
-        table.appendChild(thead);
-        table.appendChild(tbody);
+		games.map(game => {
+			const tr = document.createElement("tr");
+			SCHEDULE_COLUMNS.forEach(col => {
+				const td = createColumn(col, game);
+				if (game.round_name) {
+					td.classList.add("pokal");
+				}
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
 
-        return table;
-    }
+		const headerRow = document.createElement("tr");
+		SCHEDULE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
 
-    function createGameSchedule(data) {
-        if (!data || !data.meetings_excerpt || !data.meetings_excerpt.meetings || !Array.isArray(data.meetings_excerpt.meetings)) {
-            return document.createTextNode("No game data available.");
-        }
+		table.appendChild(thead);
+		table.appendChild(tbody);
 
-        const table = document.createElement("table");
-        const thead = document.createElement("thead");
-        const tbody = document.createElement("tbody");
+		return table;
+	}
 
-        const games = data.meetings_excerpt.meetings
-            .flatMap(_game => Object.values(_game)).flat();
+	function createGameSchedule(data) {
+		if (!data || !data.meetings_excerpt || !data.meetings_excerpt.meetings || !Array.isArray(data.meetings_excerpt.meetings)) {
+			return document.createTextNode("No game data available.");
+		}
 
-        games.map(game => {
-            const tr = document.createElement("tr");
-            SCHEDULE_COLUMNS.forEach(col => {
-                const td = createColumn(col, game);
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
 
-        const headerRow = document.createElement("tr");
-        SCHEDULE_COLUMNS.forEach(col => {
-            const th = document.createElement("th");
-            th.className = col.key.replace("/", " ");
-            th.textContent = col.label;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
+		const games = data.meetings_excerpt.meetings
+			.flatMap(_game => Object.values(_game)).flat();
 
-        table.appendChild(thead);
-        table.appendChild(tbody);
+		games.map(game => {
+			const tr = document.createElement("tr");
+			SCHEDULE_COLUMNS.forEach(col => {
+				const td = createColumn(col, game);
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
 
-        return table;
+		const headerRow = document.createElement("tr");
+		SCHEDULE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
 
-    }
+		table.appendChild(thead);
+		table.appendChild(tbody);
 
-    function createRankTable(data) {
-        if (!data || !data.table || !Array.isArray(data.table)) {
-            return document.createTextNode("No table data available.");
-        }
+		return table;
 
-        const table = document.createElement("table");
-        const thead = document.createElement("thead");
-        const tbody = document.createElement("tbody");
+	}
 
-        const clubs = data.table;
+	function createRankTable(data) {
+		if (!data || !data.table || !Array.isArray(data.table)) {
+			return document.createTextNode("No table data available.");
+		}
 
-        clubs.map(club => {
-            const tr = document.createElement("tr");
-            TABLE_COLUMNS.forEach(col => {
-                const td = createColumn(col, club);
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
+		const table = document.createElement("table");
+		const thead = document.createElement("thead");
+		const tbody = document.createElement("tbody");
 
-        const headerRow = document.createElement("tr");
-        TABLE_COLUMNS.forEach(col => {
-            const th = document.createElement("th");
-            th.className = col.key.replace("/", " ");
-            th.textContent = col.label;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
+		const clubs = data.table;
 
-        table.appendChild(thead);
-        table.appendChild(tbody);
+		clubs.map(club => {
+			const tr = document.createElement("tr");
+			TABLE_COLUMNS.forEach(col => {
+				const td = createColumn(col, club);
+				tr.appendChild(td);
+			});
+			tbody.appendChild(tr);
+		});
 
-        return table;
+		const headerRow = document.createElement("tr");
+		TABLE_COLUMNS.forEach(col => {
+			const th = document.createElement("th");
+			th.className = col.key.replace("/", " ");
+			th.textContent = col.label;
+			headerRow.appendChild(th);
+		});
+		thead.appendChild(headerRow);
 
-    }
+		table.appendChild(thead);
+		table.appendChild(tbody);
 
-    function createColumn(col, data) {
-        const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
-        const td = document.createElement("td");
-        td.className = classes + " " + col.key.replace("/", " ");
-        td.innerHTML = formatColumn(data, col.key);
-        return td;
-    }
+		return table;
 
-    if (document.readyState !== "complete") {
-        document.addEventListener("readystatechange", () => {
-            if (document.readyState === "complete") {
-                init();
-            }
-        });
-    } else {
-        init();
-    }
+	}
+
+	function createColumn(col, data) {
+		const classes = classNameMap[col.key] ? classNameMap[col.key] : "";
+		const td = document.createElement("td");
+		td.className = classes + " " + col.key.replace("/", " ");
+		td.innerHTML = formatColumn(data, col.key);
+		return td;
+	}
+
+	if (document.readyState !== "complete") {
+		document.addEventListener("readystatechange", () => {
+			if (document.readyState === "complete") {
+				init();
+			}
+		});
+	} else {
+		init();
+	}
 
 })();
