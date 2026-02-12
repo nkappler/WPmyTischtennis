@@ -22,7 +22,7 @@ export default function save({ attributes }) {
 	return (
 		<p
 			{...useBlockProps.save()}
-			data-url={attributes.url}
+			data-url={attributes.url.join('|!|')}
 			data-search={attributes.search.join('|!|')}
 			data-replace={attributes.replace.join('|!|')}
 			data-liga={attributes.liga.join('|!|')}

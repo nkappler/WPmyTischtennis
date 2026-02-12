@@ -171,10 +171,40 @@
 		document.querySelectorAll("p.wp-block-ttc-tabelle-spielplan").forEach(replaceBlockWithTable);
 	}
 
+	async function fetchData(url) {
+		try {
+			const urlObj = new URL(url);
+			const fetchUrl = `${location.origin}/proxy?url=${encodeURIComponent(`${urlObj.origin}/${urlObj.pathname}/?_data`)}`;
+			const res = await fetch(fetchUrl);
+			if (!res.ok) throw new Error(res.statusText || 'Fetch failed');
+			return await res.json();
+		}
+		catch (e) {
+			console.warn("Failed to fetch data for Tabelle & Spielplan block:", e);
+			return { data: [] };
+		}
+	}
+
+	function deepJoin(obj1, obj2) {
+		// game data uses date as keys, so multiple games at the same date overwrite each other.
+		Object.entries(obj2).forEach(([key, value]) => {
+			if (obj1[key]) {
+				obj1[key].push(...value)
+			} else {
+				obj1[key] = value;
+			}
+		});
+		return obj1;
+	}
+
 	async function replaceBlockWithTable(block) {
 		const _url = block.dataset.url;
-		const url = new URL(_url);
-		if (!url) {
+
+		// TODO handle multiple urls
+		/** @type {string[]} */
+		const urls = (block.dataset.url || "").split('|!|');;
+
+		if (!urls || urls.length === 0 || urls.filter(u => u && u.trim() !== "").length === 0) {
 			console.warn("No URL provided for Tabelle & Spielplan block.");
 			return;
 		}
@@ -183,7 +213,13 @@
 		replace = (block.dataset.replace || "").split('|!|');
 		liga = (block.dataset.liga || "").split('|!|');
 
-		const data = await (await fetch(`${location.origin}/proxy?url=${encodeURIComponent(`${url.origin}/${url.pathname}/?_data`)}`)).json();
+		const data = {
+			data: (await Promise.all(urls.map(u => fetchData(u)))).reduce(
+				(acc, curr) => deepJoin(acc, curr.data || {})
+				, {})
+		};
+
+		console.log('Fetched data for Tabelle & Spielplan block:', data);
 
 		const container = document.createElement("div");
 
@@ -227,6 +263,8 @@
 		const tbody = document.createElement("tbody");
 
 		const games = Object.values(data).flat();
+
+		games.sort((a, b) => new Date(a.date) - new Date(b.date));
 
 		games.map(game => {
 			const tr = document.createElement("tr");

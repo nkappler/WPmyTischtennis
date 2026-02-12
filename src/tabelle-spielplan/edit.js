@@ -46,18 +46,43 @@ const Sidebar = ({ attributes, setAttributes }) => {
 
 	return <InspectorControls>
 		<PanelBody title={__('Settings', 'tabelle-spielplan')}>
-			<TextControl
-				__nextHasNoMarginBottom
-				__next40pxDefaultSize
-				label={__(
-					'Abruf-URL',
-					'tabelle-spielplan'
-				)}
-				value={url || ''}
-				onChange={(value) =>
-					setAttributes({ url: value })
-				}
-			/>
+			<VStack spacing={2}>
+				{url.map((_, i) => {
+
+					return <HStack spacing={1} style={{ alignItems: "start" }}>
+
+						<TextControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
+							label={__(
+								'Abruf-URL',
+								'tabelle-spielplan'
+							)}
+							value={url[i] || ''}
+							onChange={(value) =>
+								setAttributes({ url: url.map((s, index) => index === i ? value : s) })
+							}
+						/>
+
+						<IconButton
+							icon="trash"
+							label={__('URL löschen', 'tabelle-spielplan')}
+							onClick={() => {
+								setAttributes({
+									url: url.filter((_, index) => index !== i),
+								});
+							}}
+						/>
+
+					</HStack>
+				})}
+			</VStack>
+
+			<Button icon={"plus"} onClick={() => {
+				setAttributes({
+					url: [...url, ''],
+				});
+			}}>Weitere URL</Button>
 
 			<VStack spacing={2}>
 				{search.map((_, i) => {
@@ -162,10 +187,22 @@ export default function Edit({ attributes, setAttributes }) {
 	const fetchIdRef = useRef(0);
 
 	useEffect(() => {
-		if (!url) return undefined;
+		if (!url || !Array.isArray(url)) {
+			return undefined;
+		}
 
-		const urlObj = new URL(url);
-		const fetchUrl = `${location.origin}/proxy?url=${encodeURIComponent(`${urlObj.origin}/${urlObj.pathname}/?_data`)}`
+		if (url.filter(u => u && u.trim() !== "").length === 0) {
+			return undefined;
+		}
+
+		let url, fetchUrl;
+
+		try {
+			urlObj = new URL(url[0]); // TODO multiple urls
+			fetchUrl = `${location.origin}/proxy?url=${encodeURIComponent(`${urlObj.origin}/${urlObj.pathname}/?_data`)}`
+		} catch (e) {
+
+		}
 
 		const controller = new AbortController();
 		const signal = controller.signal;
@@ -176,7 +213,7 @@ export default function Edit({ attributes, setAttributes }) {
 
 		(async () => {
 			try {
-				const res = await fetch(fetchUrl, { signal });
+				const res = await fetch(fetchUrl || "", { signal });
 				if (!res.ok) throw new Error(res.statusText || 'Fetch failed');
 
 				const json = await res.json();
@@ -198,7 +235,7 @@ export default function Edit({ attributes, setAttributes }) {
 
 		// cleanup: abort this fetch if attrs change / component unmounts
 		return () => controller.abort();
-	}, [url, search, replace]);
+	}, [url]);
 
 	console.log(data);
 
@@ -261,12 +298,14 @@ export default function Edit({ attributes, setAttributes }) {
 				'tabelle-spielplan'
 			)}
 		</p>
-		<Tables search={search} replace={replace} liga={liga} data={data} />
+		<Tables search={search} replace={replace} liga={liga} data={data || []} />
 	</>;
 }
 
 function Tables(props) {
 	const { data: _data, search, replace, liga } = props;
+
+	console.log('Tables props:', props);
 
 	/** @type {Record<string, string>} */
 	const classNameMap = {

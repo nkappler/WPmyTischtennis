@@ -10,8 +10,10 @@
 	"example": {},
 	"attributes": {
 		"url": {
-			"type": "string",
-			"default": ""
+			"type": "array",
+			"default": [
+				""
+			]
 		},
 		"search": {
 			"type": "array",
